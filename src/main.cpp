@@ -13,6 +13,7 @@ motor LBdrive(PORT19, ratio18_1);
 motor RBdrive(PORT11, ratio18_1, true);
 motor ArmMotor(PORT13, ratio18_1, true);
 motor OtherArmMotor(PORT18, ratio18_1, true);
+motor IntakeMotor(PORT16,ratio18_1,true);
 digital_out pistonPort(pancakes.ThreeWirePort.H);
 
 motor_group LeftSide = motor_group (LFdrive, LBdrive);
@@ -20,10 +21,11 @@ motor_group RightSide = motor_group (RFdrive, RBdrive);
 
 bool pistonDown = false;
 bool armDown = false;
+int intakeMode = 0;
 
 // define your global instances of motors and other devices here
 
-void driveForward( float inches, float distance, float distance2 ) {
+void driveForward( float inches, float speed, float distance2 ) {
         float inchesPerDegree = 25;
         float timer = 0;
         // startRotate doesn't wait for completion
@@ -31,8 +33,8 @@ void driveForward( float inches, float distance, float distance2 ) {
         
         while (timer < 30){
         
-        LeftSide.spin(vex::forward, inchesPerDegree * distance, vex::percent);
-        RightSide.spin(vex::forward, inchesPerDegree * distance, vex::percent);
+        LeftSide.spin(vex::forward, inchesPerDegree * speed, vex::percent);
+        RightSide.spin(vex::forward, inchesPerDegree * speed, vex::percent);
         timer++;
         }
         vex::task::sleep(distance2);
@@ -101,38 +103,61 @@ void PistonToggle(){
     pistonPort.set(!pistonDown);
     pistonDown= !pistonDown; 
 }
-void ArmDown(float fraction){
+void ArmUp(float fraction){
     ArmMotor.spin(forward,110.0,vex::velocityUnits::dps);
     OtherArmMotor.spin(reverse,110.0,vex::velocityUnits::dps);
-    vex::task::sleep(2500*fraction);
-    ArmMotor.setStopping(brakeType::brake);
+    vex::task::sleep(3500*fraction);
+    ArmMotor.setStopping(brakeType::hold);
     ArmMotor.stop();
-    OtherArmMotor.setStopping(brakeType::brake);
+    OtherArmMotor.setStopping(brakeType::hold);
     OtherArmMotor.stop();
 }
-void ArmUp(float fraction){
+void ArmDown(float fraction){
     ArmMotor.spin(reverse,350.0,vex::velocityUnits::dps);
     OtherArmMotor.spin(forward,350.0,vex::velocityUnits::dps);
-    vex::task::sleep(1500*fraction);
-    ArmMotor.setStopping(brakeType::brake);
+    vex::task::sleep(2500*fraction);
+    ArmMotor.setStopping(brakeType::hold);
     ArmMotor.stop();
-    OtherArmMotor.setStopping(brakeType::brake);
+    OtherArmMotor.setStopping(brakeType::hold);
     OtherArmMotor.stop();
-
+}
+void IntakeIn(){
+  if (intakeMode != 1){
+    IntakeMotor.spin(forward,700.0,vex::velocityUnits::dps);
+    intakeMode = 1;
+  }
+  else{
+    IntakeMotor.setStopping(brakeType::brake);
+    IntakeMotor.stop();
+    intakeMode = 0;
+  }
+}
+void IntakeOut(){
+  if (intakeMode != -1){
+    IntakeMotor.spin(forward,-700.0,vex::velocityUnits::dps);
+    intakeMode = -1;
+  }
+  else{
+    IntakeMotor.setStopping(brakeType::brake);
+    IntakeMotor.stop();
+    intakeMode = 0;
+  }
 }
 
 
 
 void pre_auton(void) {
     Cotton_candy.ButtonA.pressed(PistonToggle);
+    Cotton_candy.ButtonB.pressed(IntakeIn);
+    Cotton_candy.ButtonX.pressed(IntakeOut);
     pistonPort.set(false);
 }
 
 void autonomous(void) {
-    ArmDown(1);
+    ArmUp(1);
     driveForward(1,-100,1375);
-    ArmUp(1.0);
-    ArmDown(0.8);
+    ArmDown(1.0);
+    ArmUp(0.8);
     driveForward(1,100,1375);
 }
 
@@ -155,17 +180,17 @@ void usercontrol(void) {
   RightSide.spin(vex::forward, -rightSpin, vex::percent);
 
   if (Cotton_candy.ButtonR1.pressing()){
-    ArmMotor.spin(forward,110.0,vex::velocityUnits::dps);
-    OtherArmMotor.spin(reverse,110.0,vex::velocityUnits::dps);
+    ArmMotor.spin(forward,180.0,vex::velocityUnits::dps);
+    OtherArmMotor.spin(reverse,180.0,vex::velocityUnits::dps);
   }
   else if (Cotton_candy.ButtonL1.pressing()){
-    ArmMotor.spin(reverse,110.0,vex::velocityUnits::dps);
-    OtherArmMotor.spin(forward,110.0,vex::velocityUnits::dps);
+    ArmMotor.spin(reverse,180.0,vex::velocityUnits::dps);
+    OtherArmMotor.spin(forward,180.0,vex::velocityUnits::dps);
   }
   else {
-    ArmMotor.setStopping(brakeType::brake);
+    ArmMotor.setStopping(brakeType::hold);
     ArmMotor.stop();
-    OtherArmMotor.setStopping(brakeType::brake);
+    OtherArmMotor.setStopping(brakeType::hold);
     OtherArmMotor.stop();
   }
 
