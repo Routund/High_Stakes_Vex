@@ -304,13 +304,13 @@ void usercontrol(void) {
 
   if (Cotton_candy.ButtonR1.pressing()){
 
-    TopChainMotor.spin(forward,110.0,vex::velocityUnits::dps);
+    TopChainMotor.spin(forward,220.0,vex::velocityUnits::dps);
 
   }
 
   else if (Cotton_candy.ButtonL1.pressing()){
 
-    TopChainMotor.spin(reverse,110.0,vex::velocityUnits::dps);
+    TopChainMotor.spin(reverse,220.0,vex::velocityUnits::dps);
 
   }
 
