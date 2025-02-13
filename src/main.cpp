@@ -1,4 +1,5 @@
 #include "vex.h"
+#include <bits/stdc++.h>
 
 using namespace vex;
 
@@ -10,10 +11,10 @@ brain pancakes;
 
 motor LFdrive(PORT16, ratio18_1);
 motor RFdrive(PORT20, ratio18_1, true);
-motor LBdrive(PORT1, ratio18_1);
+motor LBdrive(PORT14, ratio18_1);
 motor RBdrive(PORT12, ratio18_1, true);
-motor TopChainMotor(PORT12, ratio18_1, true);
-motor FlexMotor(PORT16, ratio18_1, true);
+motor TopChainMotor(PORT1, ratio18_1, true);
+motor FlexMotor(PORT9, ratio18_1, true);
 
 digital_out pistonPort(pancakes.ThreeWirePort.H);
 
@@ -47,22 +48,25 @@ float r_previous_diff = 0;
 float r_speed = 0;
 
 void drive_pd() {
-  if (drive_pd_enabled){
+  while (true){
+    if (drive_pd_enabled){
 
-    float average_lateral_position = (LeftSide.position(degrees) + RightSide.position(degrees))/2 - lateral_position_offset;
-    l_diff_in_position = average_lateral_position - lateral_movement;
-    l_speed = l_diff_in_position - l_previous_diff;
-
-    float average_rotational_position = (LeftSide.position(degrees) - RightSide.position(degrees))/2 - rotation_position_offset;
-    r_diff_in_position = average_rotational_position - rotation_desired;
-    r_speed = r_diff_in_position - r_previous_diff;
-    
-    float lateral_motor_power = (l_diff_in_position * 0.001 + l_speed * 0.0001)/12;
-    float rotation_motor_power = (r_diff_in_position * 0.001 + r_speed * 0.0001)/12;
-    LeftSide.spin(forward,lateral_motor_power + rotation_motor_power,voltageUnits::volt);
-    RightSide.spin(forward,lateral_motor_power + rotation_motor_power,voltageUnits::volt);
+      float average_lateral_position = -(LeftSide.position(degrees) + RightSide.position(degrees))/2 - lateral_position_offset;
+      l_diff_in_position = average_lateral_position - lateral_movement;
+      l_speed = l_diff_in_position - l_previous_diff;
+  
+      float average_rotational_position = -(LeftSide.position(degrees) - RightSide.position(degrees))/2 - rotation_position_offset;;
+      r_diff_in_position = average_rotational_position - rotation_desired;
+      r_speed = r_diff_in_position - r_previous_diff;
+      
+      float lateral_motor_power = (l_diff_in_position * 0.975 + l_speed * 0.001)/12;
+      float rotation_motor_power = (r_diff_in_position * 0.975 + r_speed * 0.001)/12;
+      LeftSide.spin(forward, lateral_motor_power + rotation_motor_power,voltageUnits::volt);
+      pancakes.Screen.print("%f \n",average_lateral_position);
+      RightSide.spin(forward, lateral_motor_power - rotation_motor_power,voltageUnits::volt);
+    }
+    this_thread::sleep_for(20);
   }
-  this_thread::sleep_for(20);
 }
 
 void driveForward(float distance) {
@@ -82,7 +86,8 @@ void driveForward(float distance) {
         // RightSide.spin(vex::forward, 0, vex::percent);
         // LeftSide.spin(vex::forward,0, vex::percent);
 
-        lateral_position_offset = (LeftSide.position(degrees) + RightSide.position(degrees))/2;
+        LeftSide.setPosition(0,degrees);
+        RightSide.setPosition(0,degrees);
         lateral_movement = distance;
     }
 
@@ -111,9 +116,10 @@ void rotate(float angle){
   //     RightSide.spin(vex::forward, 0, vex::percent);
   //     LeftSide.spin(vex::forward,0, vex::percent);
   // }
-
-  rotation_position_offset = (LeftSide.position(degrees) - RightSide.position(degrees))/2;
-  rotation_desired = angle * 8;
+  pancakes.Screen.print(angle);
+  LeftSide.setPosition(0,degrees);
+  RightSide.setPosition(0,degrees);
+  rotation_desired = angle * 8.2;
 }
 
 void PistonToggle(){
@@ -125,7 +131,7 @@ void intake_system_forward(){
   if (intake_mode!=1){
     top_chain_on = true;
     flex_on = true;
-    TopChainMotor.spin(reverse,180.0,vex::velocityUnits::dps);
+    TopChainMotor.spin(forward,180.0,vex::velocityUnits::dps);
     FlexMotor.spin(forward,220.0,vex::velocityUnits::dps);
     intake_mode = 1;
   }
@@ -142,7 +148,7 @@ void intake_system_reverse(){
   if (intake_mode!=-1){
     top_chain_on = true;
     flex_on = true;
-    TopChainMotor.spin(reverse,-180.0,vex::velocityUnits::dps);
+    TopChainMotor.spin(forward,-180.0,vex::velocityUnits::dps);
     FlexMotor.spin(forward,-220.0,vex::velocityUnits::dps);
     intake_mode = -1;
   }
@@ -204,16 +210,19 @@ void pre_auton(void) {
 void autonomous(void) {
 
   drive_pd_enabled = true;
-  vex::thread(drive_pd); 
+  thread drive_thread = thread(drive_pd); 
 
-  driveForward(360);
+  driveForward(-1200);
 
+  wait(2500,msec);
+
+  intake_system_forward();
   wait(2000,msec);
-
-  top_chain_forward_toggle();
-  wait(1000,msec);
   
-  driveForward(-360);
+  driveForward(1100);
+  intake_system_forward();
+
+  rotate(90);
 
 }
 
@@ -240,15 +249,7 @@ void usercontrol(void) {
     LeftSide.spin(vex::forward, leftSpin, vex::percent);
     RightSide.spin(vex::forward, rightSpin, vex::percent);
 
-    if (Cotton_candy.ButtonR1.pressing()){
-      TopChainMotor.spin(forward,180.0,vex::velocityUnits::dps);
-    }
-    else if (Cotton_candy.ButtonL1.pressing()){
-      TopChainMotor.spin(reverse,180.0,vex::velocityUnits::dps);
-    }
-    else {
-      TopChainMotor.stop();
-    }
+
 
   wait(20, msec); // Sleep the task for a short amount of time to prevent wasted resources.
   }
